@@ -8,12 +8,12 @@ from selenium.webdriver.support.ui import Select
 from bs4 import BeautifulSoup
 from math import ceil
 import asyncio
-from prisma import Prisma
 import time
 import json
 
-username = "mahmadi"
-password = "Darchaloos1"
+allCourse={}
+username = ""
+password = ""
 driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()))
 driver.get("https://tsqs.srv.ualberta.ca/cgi-bin/usri/usri.pl")
 
@@ -231,14 +231,31 @@ def dataProcessor(htmlInput,count):
                 else:
                     profList.append({"name":name,"class":profObj})
                 profObj=0
+    allCourse[course]={}
     for yy in range(len(profList)):
         obj=profList[yy]["class"]
         obj.avg()
-        profList[yy]["class"] = obj
+        profName=profList[yy]["name"]
+        allCourse[course][profName]={}
+        allCourse[course][profName]["count"]=obj.count
+        allCourse[course][profName]["goals"]=obj.goals
+        allCourse[course][profName]["timeEfficent"]=obj.timeEfficent
+        allCourse[course][profName]["quality"]=obj.quality
+        allCourse[course][profName]["knowledgeIncrease"]=obj.knowledgeIncrease
+        allCourse[course][profName]["motivation"]=obj.motivation
+        allCourse[course][profName]["communication"]=obj.communication
+        allCourse[course][profName]["prepared"]=obj.prepared
+        allCourse[course][profName]["respect"]=obj.respect
+        allCourse[course][profName]["feedback"]=obj.feedback
+        allCourse[course][profName]["overallMed"]=obj.overallMed
+        allCourse[course][profName]["courseQual"]=obj.courseQual
+        allCourse[course][profName]["instructQual"]=obj.instructQual
+        allCourse[course][profName]["teachingQual"]=obj.teachingQual
+        allCourse[course][profName]["overallQual"]=obj.overallQual
 
     return(profList)
 login(username,password)
-years(2020,2021)
+years(2000,2021)
 
 with open('./json_data.json', 'r') as f:
         data = json.load(f)
@@ -263,56 +280,9 @@ for course in dataSet:
         driver.execute_script("window.history.go(-1)")
         continue
     driver.execute_script("window.history.go(-1)")
+
+json_object = json.dumps(allCourse, indent=4)
+with open("data.json", "w") as outfile:
+    outfile.write(json_object)
 time.sleep(1)
     
-
-async def createProf(dbEntries) -> None:
-    prisma = Prisma()
-    await prisma.connect()
-    for entry in dbEntries:
-        prof = await prisma.professor.find_first(
-            where={
-                'name': entry["name"]
-            }
-        )
-        coursetaught = await prisma.course.find_first(
-            where={
-                'name': entry["class"].course
-            }
-        )
-        if coursetaught == None or prof == None:
-            continue
-        createdProf = await prisma.professor.update(
-            where={
-                'id': prof.id
-            },
-            data={
-                'courses': {
-                    'create': {
-                        'course_id': coursetaught.id,
-                        'goals_obj': entry["class"].goals,
-                        'time_use': entry["class"].timeEfficent,
-                        'motivation': entry["class"].motivation,
-                        'knowledge': entry["class"].knowledgeIncrease,
-                        'course_quality': entry["class"].courseQual,
-                        'instructor_clarity': entry["class"].communication,
-                        'preparedness': entry["class"].prepared,
-                        'student_respect': entry["class"].respect,
-                        'feedback': entry["class"].feedback,
-                        'instructor_quality': entry["class"].instructQual,
-                        'total_score': entry["class"].overallQual,
-                        'total_course_score': entry["class"].teachingQual,
-                        'total_comm_score': entry["class"].instructQual,
-                    }
-                }
-            }
-        )
-        prisma.disconnect()
-    
-
-async def main() -> None:
-    await createProf(toDo)
-    
-
-if __name__ == '__main__':
-    asyncio.run(main())
